@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "DockModel.h"
+#include "FloatOrigin.h"
 #include "WindowMenu.h"
 
 namespace dl {
@@ -20,6 +21,7 @@ struct DropTarget {
     int area = kAreaUnknown;
     int panel = -1;
     bool after = false;
+    bool known = false;
     RECT preview = {};
 };
 
@@ -29,9 +31,16 @@ struct GuideButton {
     DropTarget target;
 };
 
+struct InsertPlan {
+    std::vector<int> slots;
+    int from = -1;
+    int to = -1;
+};
+
 class DockGuides {
 public:
-    void Update(const DockModel& model, int source, POINT cursor, bool inside);
+    void Update(const DockModel& model, int source, POINT cursor, bool inside,
+                const FloatOrigin* incoming);
     void Clear();
 
     const std::vector<GuideButton>& Buttons() const { return buttons_; }
@@ -39,7 +48,7 @@ public:
     const DropTarget& Target() const { return target_; }
 
 private:
-    void AddAreaCross(const DockModel& model);
+    void AddAreaCross(const DockModel& model, int source);
     void AddPanelCluster(const DockModel& model, int source, int hovered);
 
     std::vector<GuideButton> buttons_;
@@ -49,5 +58,6 @@ private:
 
 bool CanGroupOnto(const DockModel& model, int source, int target);
 bool CanInsertInto(const DockModel& model, int source, int target);
+bool BuildInsertPlan(const DockModel& model, int source, int target, bool after, InsertPlan* plan);
 
 }

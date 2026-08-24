@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "DragSession.h"
+#include "FloatOrigin.h"
 #include "HostContext.h"
 
 namespace dl {
@@ -60,6 +61,7 @@ static LRESULT CALLBACK FloatProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_NCDESTROY: {
             if (Drag().Window() == hwnd) Drag().Cancel();
             const LRESULT result = CallOriginalProc(hwnd, msg, wp, lp);
+            ForgetFloat(hwnd);
             Unhook(hwnd);
             return result;
         }
@@ -86,6 +88,9 @@ static BOOL CALLBACK Collect(HWND window, LPARAM) {
 
     SetWindowProc(window, (WNDPROC)SetWindowLongPtrW(window, GWLP_WNDPROC, (LONG_PTR)FloatProc));
     g_hooked.push_back(window);
+
+    FloatOrigin origin;
+    if (TakePendingFloat(&origin)) RememberFloat(window, origin);
     return TRUE;
 }
 

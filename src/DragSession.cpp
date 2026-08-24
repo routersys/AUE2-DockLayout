@@ -1,11 +1,12 @@
 #include "DragSession.h"
 
 #include <stdlib.h>
-#include <utility>
 #include <vector>
 
 #include "DockGuides.h"
 #include "DockModel.h"
+#include "DockPlan.h"
+#include "FloatOrigin.h"
 #include "GuideWindow.h"
 #include "HostContext.h"
 #include "Log.h"
@@ -82,6 +83,20 @@ static POINT ToScreen(HWND window, POINT clientPt) {
     return pt;
 }
 
+static void TraceGuides() {
+    const std::vector<GuideButton>& buttons = g_guides.Buttons();
+    for (size_t i = 0; i < buttons.size(); i++) {
+        const GuideButton& button = buttons[i];
+        LogTraceF(L"guide %d kind %d button %d %d %d %d known %d preview %d %d %d %d",
+                  static_cast<int>(i), static_cast<int>(button.target.kind),
+                  button.rect.left, button.rect.top, button.rect.right, button.rect.bottom,
+                  button.target.known ? 1 : 0,
+                  button.target.preview.left, button.target.preview.top,
+                  button.target.preview.right, button.target.preview.bottom);
+    }
+    LogTraceF(L"guide end hot %d", g_guides.Hot());
+}
+
 bool DragSession::Holding() const { return phase_ == Phase::Armed; }
 bool DragSession::Dragging() const { return phase_ == Phase::Dragging; }
 
@@ -113,12 +128,15 @@ bool DragSession::BeginFloat(HWND window) {
 
 bool DragSession::Start() {
     panel_ = -1;
+    hasOrigin_ = false;
     if (window_ == HostWindow()) {
         if (!g_model.Build()) return false;
         panel_ = g_model.IndexAt(origin_);
         if (panel_ < 0) return false;
-    } else if (!g_model.BuildRegion()) {
-        return false;
+    } else {
+        const bool built = g_model.Build();
+        if (built) hasOrigin_ = FloatOriginOf(window_, &floatOrigin_);
+        if (!built && !g_model.BuildRegion()) return false;
     }
 
     g_guides.Clear();
@@ -139,7 +157,8 @@ void DragSession::Track(POINT screenPt) {
 
     const POINT hostPt = ToHostClient(screenPt);
     const bool inside = PtInRect(&g_model.Region(), hostPt) != 0;
-    g_guides.Update(g_model, panel_, hostPt, inside);
+    g_guides.Update(g_model, panel_, hostPt, inside, hasOrigin_ ? &floatOrigin_ : nullptr);
+    TraceGuides();
     Overlay().Update(g_guides);
 }
 
@@ -157,40 +176,44 @@ void DragSession::ExecuteGroup(int target) {
 
 void DragSession::ExecuteInsert(int target, bool after) {
     const DockPanel* from = g_model.Get(panel_);
-    const DockPanel* onto = g_model.Get(target);
-    if (!from || !onto) return;
+    InsertPlan plan;
+    if (!from || !BuildInsertPlan(g_model, panel_, target, after, &plan)) return;
 
-    std::vector<const DockPanel*> slots;
-    for (const DockPanel& panel : g_model.Panels())
-        if (panel.stack == from->stack) slots.push_back(&panel);
-    for (size_t i = 1; i < slots.size(); i++)
-        for (size_t j = i; j > 0 && slots[j - 1]->order > slots[j]->order; j--)
-            std::swap(slots[j - 1], slots[j]);
-
-    int at = -1, to = -1;
-    for (size_t i = 0; i < slots.size(); i++) {
-        if (slots[i] == from) at = static_cast<int>(i);
-        if (slots[i] == onto) to = static_cast<int>(i);
-    }
-    if (at < 0 || to < 0) return;
-
-    const int destination = after ? (at < to ? to : to + 1) : (at < to ? to - 1 : to);
-    if (destination == at) return;
-
-    const int step = destination < at ? -1 : 1;
+    const int step = plan.to < plan.from ? -1 : 1;
     const WindowCommand command = step < 0 ? WindowCommand::MoveUp : WindowCommand::MoveDown;
     const POINT grab = { origin_.x - from->rect.left, origin_.y - from->rect.top };
-    for (int index = at; index != destination; index += step) {
-        const RECT& slot = slots[index]->rect;
-        const POINT point = { min(slot.left + grab.x, slot.right - 1),
-                              min(slot.top + grab.y, slot.bottom - 1) };
+    for (int index = plan.from; index != plan.to; index += step) {
+        const DockPanel* slot = g_model.Get(plan.slots[index]);
+        if (!slot) return;
+        const POINT point = { min(slot->rect.left + grab.x, slot->rect.right - 1),
+                              min(slot->rect.top + grab.y, slot->rect.bottom - 1) };
         InvokeWindowCommand(HostWindow(), point, command);
     }
     LogF(L"ドッキング配置: パネルの並び順を変えました");
 }
 
+void DragSession::ExecuteDetach() {
+    const DockPanel* from = g_model.Get(panel_);
+    if (!from) return;
+
+    DockPlan plan;
+    FloatOrigin origin;
+    const bool known = plan.Load(g_model) &&
+                       plan.NormalizedOf(panel_, &origin.left, &origin.top,
+                                         &origin.right, &origin.bottom);
+    origin.area = from->area;
+
+    if (!InvokeWindowCommand(HostWindow(), origin_, WindowCommand::Detach)) return;
+    LogF(L"ドッキング配置: パネルを分離しました");
+    if (known) SetPendingFloat(origin);
+}
+
 void DragSession::Execute() {
     const DropTarget target = g_guides.Target();
+    LogTraceF(L"drop kind %d known %d preview %d %d %d %d",
+              static_cast<int>(target.kind), target.known ? 1 : 0,
+              target.preview.left, target.preview.top,
+              target.preview.right, target.preview.bottom);
     switch (target.kind) {
         case DropKind::Area: {
             const DockPanel* from = g_model.Get(panel_);
@@ -206,8 +229,7 @@ void DragSession::Execute() {
             ExecuteInsert(target.panel, target.after);
             return;
         case DropKind::Detach:
-            if (InvokeWindowCommand(HostWindow(), origin_, WindowCommand::Detach))
-                LogF(L"ドッキング配置: パネルを分離しました");
+            ExecuteDetach();
             return;
         case DropKind::Merge: {
             RECT client = {};
@@ -219,6 +241,7 @@ void DragSession::Execute() {
             };
             for (const POINT& point : candidates) {
                 if (!InvokeWindowCommand(window_, point, WindowCommand::Merge)) continue;
+                ForgetFloat(window_);
                 LogF(L"ドッキング配置: ウィンドウを本体へ戻しました");
                 return;
             }

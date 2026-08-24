@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include "DragSession.h"
+#include "FloatOrigin.h"
 #include "FloatWindowHook.h"
 #include "GuideWindow.h"
 #include "HostContext.h"
@@ -42,6 +43,7 @@ EXTERN_C __declspec(dllexport) void UninitializePlugin() {
     UninstallFloatWindowHook();
     UninstallHostWindowHook();
     UninstallWindowMenuHook();
+    ClearFloatOrigins();
 }
 
 BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID) { return TRUE; }
