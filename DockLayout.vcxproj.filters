@@ -19,6 +19,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\DockGuides.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="src\DockModel.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -45,6 +48,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\DockGuides.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="src\DockModel.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
