@@ -8,12 +8,14 @@ namespace dl {
 
 void SetConfigHandle(CONFIG_HANDLE* handle);
 void SetHostWindow(HWND window);
-void SetHostWindowProc(WNDPROC proc);
 
 CONFIG_HANDLE* Config();
 HWND HostWindow();
-WNDPROC HostWindowProc();
-LRESULT CallHostWindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
+
+void SetWindowProc(HWND window, WNDPROC proc);
+void ClearWindowProc(HWND window);
+WNDPROC OriginalProc(HWND window);
+LRESULT CallOriginalProc(HWND window, UINT msg, WPARAM wp, LPARAM lp);
 
 int LayoutSize(const char* key);
 int ColorCode(const char* key);
