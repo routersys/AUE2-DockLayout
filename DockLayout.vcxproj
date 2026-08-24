@@ -92,6 +92,7 @@
   </ItemDefinitionGroup>
 
   <ItemGroup>
+    <ClCompile Include="src\DockModel.cpp" />
     <ClCompile Include="src\HostContext.cpp" />
     <ClCompile Include="src\HostSurface.cpp" />
     <ClCompile Include="src\Log.cpp" />
@@ -102,6 +103,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ClInclude Include="src\DockModel.h" />
     <ClInclude Include="src\HostContext.h" />
     <ClInclude Include="src\HostSurface.h" />
     <ClInclude Include="src\Log.h" />
