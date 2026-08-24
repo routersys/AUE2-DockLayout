@@ -142,5 +142,5 @@ AviUtl ExEdit2 のウィンドウを、ドラッグとドロップだけで配�
   ■ ライセンス
 --------------------------------------------------------------------------------
   MIT License
-  https://github.com/routersys/AE2-DockLayout
+  https://github.com/routersys/AUE2-DockLayout
 ========================================

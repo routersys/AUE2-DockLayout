@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](#)
 [![AviUtl ExEdit2](https://img.shields.io/badge/AviUtl%20ExEdit2-2.1.0%20or%20later-orange.svg)](#)
-[![Release](https://img.shields.io/github/v/release/routersys/AE2-DockLayout.svg)](https://github.com/routersys/AE2-DockLayout/releases)
+[![Release](https://img.shields.io/github/v/release/routersys/AUE2-DockLayout.svg)](https://github.com/routersys/AUE2-DockLayout/releases)
 
 ---
 
@@ -55,7 +55,7 @@ AviUtl ExEdit2 のウィンドウ配置は、右クリックメニューの「�
 
 ## インストール方法
 
-1. [Releases](https://github.com/routersys/AE2-DockLayout/releases/latest) ページから `DockLayout_v1.0.0.au2pkg.zip` をダウンロードしてください。
+1. [Releases](https://github.com/routersys/AUE2-DockLayout/releases/latest) ページから `DockLayout_v1.0.0.au2pkg.zip` をダウンロードしてください。
 2. AviUtl ExEdit2 を起動し、ダウンロードしたファイルをプレビュー画面へドロップします。
 3. 確認の画面で「このプラグイン・スクリプトを信頼して使用する」を選んでください。インストールの後に AviUtl ExEdit2 が再起動します。
 
