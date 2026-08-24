@@ -95,11 +95,13 @@
     <ClCompile Include="src\HostContext.cpp" />
     <ClCompile Include="src\Log.cpp" />
     <ClCompile Include="src\Plugin.cpp" />
+    <ClCompile Include="src\StyleMetrics.cpp" />
   </ItemGroup>
 
   <ItemGroup>
     <ClInclude Include="src\HostContext.h" />
     <ClInclude Include="src\Log.h" />
+    <ClInclude Include="src\StyleMetrics.h" />
   </ItemGroup>
 
   <ItemGroup>
