@@ -96,6 +96,7 @@
     <ClCompile Include="src\DockModel.cpp" />
     <ClCompile Include="src\DockPlan.cpp" />
     <ClCompile Include="src\DragSession.cpp" />
+    <ClCompile Include="src\FloatOrigin.cpp" />
     <ClCompile Include="src\FloatWindowHook.cpp" />
     <ClCompile Include="src\GuideWindow.cpp" />
     <ClCompile Include="src\HostContext.cpp" />
@@ -113,6 +114,7 @@
     <ClInclude Include="src\DockModel.h" />
     <ClInclude Include="src\DockPlan.h" />
     <ClInclude Include="src\DragSession.h" />
+    <ClInclude Include="src\FloatOrigin.h" />
     <ClInclude Include="src\FloatWindowHook.h" />
     <ClInclude Include="src\GuideWindow.h" />
     <ClInclude Include="src\HostContext.h" />
