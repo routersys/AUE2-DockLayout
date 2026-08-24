@@ -29,6 +29,14 @@ static void Unhook(HWND window) {
 
 static LRESULT CALLBACK FloatProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
+        case WM_SYSCOMMAND:
+            if ((wp & 0xFFF0) == SC_MOVE) Drag().BeginFloat(hwnd);
+            break;
+
+        case WM_SIZING:
+            if (Drag().Window() == hwnd) Drag().Cancel();
+            break;
+
         case WM_MOVING: {
             if (!Drag().Dragging()) Drag().BeginFloat(hwnd);
             if (Drag().Window() == hwnd) {
@@ -41,7 +49,7 @@ static LRESULT CALLBACK FloatProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         case WM_EXITSIZEMOVE: {
             const LRESULT result = CallOriginalProc(hwnd, msg, wp, lp);
-            if (Drag().Dragging() && Drag().Window() == hwnd) {
+            if (Drag().Window() == hwnd) {
                 POINT cursor = {};
                 GetCursorPos(&cursor);
                 Drag().Commit(cursor);
