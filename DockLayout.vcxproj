@@ -98,6 +98,7 @@
     <ClCompile Include="src\PanelLayout.cpp" />
     <ClCompile Include="src\Plugin.cpp" />
     <ClCompile Include="src\StyleMetrics.cpp" />
+    <ClCompile Include="src\WindowMenu.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -106,6 +107,7 @@
     <ClInclude Include="src\Log.h" />
     <ClInclude Include="src\PanelLayout.h" />
     <ClInclude Include="src\StyleMetrics.h" />
+    <ClInclude Include="src\WindowMenu.h" />
   </ItemGroup>
 
   <ItemGroup>
