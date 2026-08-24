@@ -1,6 +1,10 @@
 #include <windows.h>
 
+#include "Log.h"
+
 #include "plugin2.h"
+
+using namespace dl;
 
 COMMON_PLUGIN_TABLE common_plugin_table = {
     L"ドッキング配置",
@@ -11,9 +15,11 @@ EXTERN_C __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(void) {
     return &common_plugin_table;
 }
 EXTERN_C __declspec(dllexport) DWORD RequiredVersion() { return 2010000; }
+EXTERN_C __declspec(dllexport) void InitializeLogger(LOG_HANDLE* h) { SetLogHandle(h); }
 EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD) { return true; }
 
 EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE*) {
+    LogF(L"DockLayout registered");
 }
 
 EXTERN_C __declspec(dllexport) void UninitializePlugin() {

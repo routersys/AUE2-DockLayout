@@ -92,7 +92,12 @@
   </ItemDefinitionGroup>
 
   <ItemGroup>
+    <ClCompile Include="src\Log.cpp" />
     <ClCompile Include="src\Plugin.cpp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClInclude Include="src\Log.h" />
   </ItemGroup>
 
   <ItemGroup>
