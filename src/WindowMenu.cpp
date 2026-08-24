@@ -12,6 +12,7 @@ static const wchar_t* const kCommandKeys[] = {
     L"ウィンドウを分離", L"ウィンドウのグループ化", L"ウィンドウを統合", L"ウィンドウを閉じる",
 };
 static const wchar_t* const kPlacementKey = L"ウィンドウ配置";
+static const int kSubmenuDepth = 3;
 
 typedef BOOL (WINAPI* TrackPopupMenu_t)(HMENU, UINT, int, int, int, HWND, const RECT*);
 static TrackPopupMenu_t g_original = nullptr;
@@ -53,8 +54,8 @@ static bool PatchSlot(void** slot, void* fn, void** old) {
     return true;
 }
 
-static HMENU FindSubmenu(HMENU menu, const wchar_t* text, int depth) {
-    if (!menu || depth > 3) return nullptr;
+static HMENU FindSubmenu(HMENU menu, const wchar_t* text, int limit) {
+    if (!menu || limit < 0) return nullptr;
     const int count = GetMenuItemCount(menu);
     for (int i = 0; i < count; i++) {
         wchar_t label[256] = {};
@@ -64,13 +65,13 @@ static HMENU FindSubmenu(HMENU menu, const wchar_t* text, int depth) {
         info.cch = 255;
         if (!GetMenuItemInfoW(menu, i, TRUE, &info) || !info.hSubMenu) continue;
         if (wcscmp(label, text) == 0) return info.hSubMenu;
-        if (HMENU found = FindSubmenu(info.hSubMenu, text, depth + 1)) return found;
+        if (HMENU found = FindSubmenu(info.hSubMenu, text, limit - 1)) return found;
     }
     return nullptr;
 }
 
-static bool FindItem(HMENU menu, const wchar_t* text, int depth, UINT* id, UINT* state) {
-    if (!menu || depth > 2) return false;
+static bool FindItem(HMENU menu, const wchar_t* text, int limit, UINT* id, UINT* state) {
+    if (!menu || limit < 0) return false;
     const int count = GetMenuItemCount(menu);
     for (int i = 0; i < count; i++) {
         wchar_t label[256] = {};
@@ -84,36 +85,43 @@ static bool FindItem(HMENU menu, const wchar_t* text, int depth, UINT* id, UINT*
             *state = info.fState;
             return true;
         }
-        if (info.hSubMenu && FindItem(info.hSubMenu, text, depth + 1, id, state)) return true;
+        if (info.hSubMenu && FindItem(info.hSubMenu, text, limit - 1, id, state)) return true;
     }
     return false;
 }
 
 static bool ItemEnabled(UINT state) { return (state & MFS_GRAYED) == 0; }
 
+static HMENU FindPlacement(HMENU menu) {
+    if (HMENU nested = FindSubmenu(menu, MenuText(kPlacementKey), kSubmenuDepth)) return nested;
+    UINT id = 0, state = 0;
+    if (FindItem(menu, MenuText(kCommandKeys[0]), 0, &id, &state)) return menu;
+    return nullptr;
+}
+
 static void Collect(HMENU menu) {
     g_state = WindowState();
     g_resultId = 0;
 
-    HMENU placement = FindSubmenu(menu, MenuText(kPlacementKey), 0);
+    HMENU placement = FindPlacement(menu);
     if (!placement) return;
     g_state.valid = true;
 
     UINT id = 0, state = 0;
     for (int i = 0; i < kAreaCount; i++) {
-        if (FindItem(placement, MenuText(kCommandKeys[i]), 0, &id, &state) && (state & MFS_CHECKED))
+        if (FindItem(placement, MenuText(kCommandKeys[i]), kSubmenuDepth, &id, &state) && (state & MFS_CHECKED))
             g_state.area = i;
     }
-    if (FindItem(placement, MenuText(kCommandKeys[(int)WindowCommand::Group]), 0, &id, &state))
+    if (FindItem(placement, MenuText(kCommandKeys[(int)WindowCommand::Group]), kSubmenuDepth, &id, &state))
         g_state.grouped = (state & MFS_CHECKED) != 0;
-    if (FindItem(placement, MenuText(kCommandKeys[(int)WindowCommand::MoveUp]), 0, &id, &state))
+    if (FindItem(placement, MenuText(kCommandKeys[(int)WindowCommand::MoveUp]), kSubmenuDepth, &id, &state))
         g_state.canMove = ItemEnabled(state);
     if (!g_state.canMove &&
-        FindItem(placement, MenuText(kCommandKeys[(int)WindowCommand::MoveDown]), 0, &id, &state))
+        FindItem(placement, MenuText(kCommandKeys[(int)WindowCommand::MoveDown]), kSubmenuDepth, &id, &state))
         g_state.canMove = ItemEnabled(state);
 
     if (g_wanted < 0) return;
-    if (FindItem(placement, MenuText(kCommandKeys[g_wanted]), 0, &id, &state) && ItemEnabled(state))
+    if (FindItem(placement, MenuText(kCommandKeys[g_wanted]), kSubmenuDepth, &id, &state) && ItemEnabled(state))
         g_resultId = id;
 }
 
