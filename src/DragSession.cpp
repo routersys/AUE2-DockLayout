@@ -15,14 +15,39 @@
 
 namespace dl {
 
+static const wchar_t* const kCommandClassName = L"DockLayoutCommand";
+static const UINT kExecuteMessage = WM_APP;
 static const int kFloatProbeInset = 2;
 
 static DragSession g_drag;
 static DockModel   g_model;
 static DockGuides  g_guides;
 static PanelLayout g_layout;
+static HWND        g_commandWindow = nullptr;
 
 DragSession& Drag() { return g_drag; }
+
+static LRESULT CALLBACK CommandProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    if (msg == kExecuteMessage) {
+        g_drag.Finish();
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+static HWND CommandWindow() {
+    if (g_commandWindow) return g_commandWindow;
+
+    WNDCLASSEXW wc = { sizeof(wc) };
+    wc.lpfnWndProc = CommandProc;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = kCommandClassName;
+    RegisterClassExW(&wc);
+
+    g_commandWindow = CreateWindowExW(0, kCommandClassName, L"", 0, 0, 0, 0, 0,
+                                      HWND_MESSAGE, nullptr, wc.hInstance, nullptr);
+    return g_commandWindow;
+}
 
 static bool ModifierHeld() {
     return (GetKeyState(VK_MENU) & 0x8000) != 0;
@@ -37,7 +62,8 @@ static bool HeaderColored(POINT clientPt) {
 
     const int color = (GetRValue(pixel) << 16) | (GetGValue(pixel) << 8) | GetBValue(pixel);
     const StyleMetrics& style = Style();
-    return color == style.titleHeader || color == style.grouping;
+    return color == style.titleHeader || color == style.grouping ||
+           color == style.groupingHover || color == style.groupingSelect;
 }
 
 static bool InTitle(const Panel& panel, POINT clientPt) {
@@ -60,7 +86,7 @@ bool DragSession::Holding() const { return phase_ == Phase::Armed; }
 bool DragSession::Dragging() const { return phase_ == Phase::Dragging; }
 
 bool DragSession::BeginPanel(POINT clientPt) {
-    if (phase_ != Phase::Idle || !HostWindow()) return false;
+    if (phase_ != Phase::Idle || pending_ || !HostWindow()) return false;
 
     const bool modifier = ModifierHeld();
     if (!modifier && !HeaderColored(clientPt)) return false;
@@ -77,7 +103,7 @@ bool DragSession::BeginPanel(POINT clientPt) {
 }
 
 bool DragSession::BeginFloat(HWND window) {
-    if (phase_ != Phase::Idle || !window || window == HostWindow()) return false;
+    if (phase_ != Phase::Idle || pending_ || !window || window == HostWindow()) return false;
     window_ = window;
     origin_ = POINT{};
     panel_ = -1;
@@ -87,14 +113,15 @@ bool DragSession::BeginFloat(HWND window) {
 
 bool DragSession::Start() {
     panel_ = -1;
-    if (!g_model.Build()) return false;
     if (window_ == HostWindow()) {
+        if (!g_model.Build()) return false;
         panel_ = g_model.IndexAt(origin_);
         if (panel_ < 0) return false;
+    } else if (!g_model.BuildRegion()) {
+        return false;
     }
 
     g_guides.Clear();
-    Overlay().Create(HostWindow());
     phase_ = Phase::Dragging;
     return true;
 }
@@ -122,9 +149,9 @@ void DragSession::ExecuteGroup(int target) {
     if (!from || !onto) return;
 
     if (!onto->grouped) InvokeWindowCommand(HostWindow(), onto->probe, WindowCommand::Group);
-    if (!from->grouped) InvokeWindowCommand(HostWindow(), from->probe, WindowCommand::Group);
+    if (!from->grouped) InvokeWindowCommand(HostWindow(), origin_, WindowCommand::Group);
     if (from->area != onto->area)
-        InvokeWindowCommand(HostWindow(), from->probe, AreaCommand(onto->area));
+        InvokeWindowCommand(HostWindow(), origin_, AreaCommand(onto->area));
     LogF(L"ドッキング配置: パネルをまとめました");
 }
 
@@ -152,8 +179,13 @@ void DragSession::ExecuteInsert(int target, bool after) {
 
     const int step = destination < at ? -1 : 1;
     const WindowCommand command = step < 0 ? WindowCommand::MoveUp : WindowCommand::MoveDown;
-    for (int index = at; index != destination; index += step)
-        InvokeWindowCommand(HostWindow(), slots[index]->probe, command);
+    const POINT grab = { origin_.x - from->rect.left, origin_.y - from->rect.top };
+    for (int index = at; index != destination; index += step) {
+        const RECT& slot = slots[index]->rect;
+        const POINT point = { min(slot.left + grab.x, slot.right - 1),
+                              min(slot.top + grab.y, slot.bottom - 1) };
+        InvokeWindowCommand(HostWindow(), point, command);
+    }
     LogF(L"ドッキング配置: パネルの並び順を変えました");
 }
 
@@ -163,8 +195,8 @@ void DragSession::Execute() {
         case DropKind::Area: {
             const DockPanel* from = g_model.Get(panel_);
             if (!from || from->area == target.area) return;
-            InvokeWindowCommand(HostWindow(), from->probe, AreaCommand(target.area));
-            LogF(L"ドッキング配置: パネルをエリア %d へ移しました", target.area);
+            if (InvokeWindowCommand(HostWindow(), origin_, AreaCommand(target.area)))
+                LogF(L"ドッキング配置: パネルをエリア %d へ移しました", target.area);
             return;
         }
         case DropKind::Group:
@@ -173,18 +205,25 @@ void DragSession::Execute() {
         case DropKind::Insert:
             ExecuteInsert(target.panel, target.after);
             return;
-        case DropKind::Detach: {
-            const DockPanel* from = g_model.Get(panel_);
-            if (!from) return;
-            InvokeWindowCommand(HostWindow(), from->probe, WindowCommand::Detach);
-            LogF(L"ドッキング配置: パネルを分離しました");
+        case DropKind::Detach:
+            if (InvokeWindowCommand(HostWindow(), origin_, WindowCommand::Detach))
+                LogF(L"ドッキング配置: パネルを分離しました");
+            return;
+        case DropKind::Merge: {
+            RECT client = {};
+            if (!GetClientRect(window_, &client)) return;
+            const POINT candidates[] = {
+                { kFloatProbeInset, kFloatProbeInset },
+                { client.right - kFloatProbeInset, kFloatProbeInset },
+                { client.right / 2, client.bottom / 2 },
+            };
+            for (const POINT& point : candidates) {
+                if (!InvokeWindowCommand(window_, point, WindowCommand::Merge)) continue;
+                LogF(L"ドッキング配置: ウィンドウを本体へ戻しました");
+                return;
+            }
             return;
         }
-        case DropKind::Merge:
-            InvokeWindowCommand(window_, POINT{ kFloatProbeInset, kFloatProbeInset },
-                                WindowCommand::Merge);
-            LogF(L"ドッキング配置: ウィンドウを本体へ戻しました");
-            return;
         default:
             return;
     }
@@ -209,6 +248,13 @@ void DragSession::Commit(POINT screenPt) {
     phase_ = Phase::Idle;
     if (GetCapture() == window_) ReleaseCapture();
     Overlay().Hide();
+    pending_ = true;
+    PostMessageW(CommandWindow(), kExecuteMessage, 0, 0);
+}
+
+void DragSession::Finish() {
+    if (!pending_) return;
+    pending_ = false;
     Execute();
     Reset();
 }
@@ -223,8 +269,16 @@ void DragSession::Cancel() {
     Reset();
 }
 
+void DragSession::Release() {
+    Cancel();
+    if (!g_commandWindow) return;
+    DestroyWindow(g_commandWindow);
+    g_commandWindow = nullptr;
+}
+
 void DragSession::Reset() {
     phase_ = Phase::Idle;
+    pending_ = false;
     window_ = nullptr;
     panel_ = -1;
     origin_ = POINT{};

@@ -10,7 +10,9 @@ public:
     bool BeginFloat(HWND window);
     void Track(POINT screenPt);
     void Commit(POINT screenPt);
+    void Finish();
     void Cancel();
+    void Release();
 
     bool Holding() const;
     bool Dragging() const;
@@ -30,6 +32,7 @@ private:
     HWND window_ = nullptr;
     POINT origin_ = {};
     int panel_ = -1;
+    bool pending_ = false;
 };
 
 DragSession& Drag();

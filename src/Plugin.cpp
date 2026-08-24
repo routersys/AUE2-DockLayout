@@ -28,6 +28,7 @@ EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD) { return true; }
 EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
     SetHostWindow(host->create_edit_handle()->get_host_app_window());
 
+    Overlay().Create(HostWindow());
     InstallWindowMenuHook();
     InstallHostWindowHook();
     InstallFloatWindowHook();
@@ -36,7 +37,7 @@ EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
 }
 
 EXTERN_C __declspec(dllexport) void UninitializePlugin() {
-    Drag().Cancel();
+    Drag().Release();
     Overlay().Destroy();
     UninstallFloatWindowHook();
     UninstallHostWindowHook();
