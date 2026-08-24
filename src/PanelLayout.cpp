@@ -98,9 +98,6 @@ RECT PanelLayout::TitleBandFrom(const RECT& area, int top) const {
         { style.grouping,       style.settingItemHeight },
         { style.groupingHover,  style.settingItemHeight },
         { style.groupingSelect, style.settingItemHeight },
-        { style.grouping,       style.groupTabHeight },
-        { style.groupingHover,  style.groupTabHeight },
-        { style.groupingSelect, style.groupTabHeight },
     };
     for (const HeaderStyle& header : styles) {
         int rows = 0;
@@ -116,16 +113,42 @@ RECT PanelLayout::TitleBandFrom(const RECT& area, int top) const {
     return kEmptyBand;
 }
 
+int PanelLayout::GroupTabRows(const RECT& area, int top) const {
+    const StyleMetrics& style = Style();
+    const int left = area.left + 1;
+    const int right = area.right - 1;
+    const int span = right - left;
+    if (span <= 0) return 0;
+
+    int rows = 0;
+    while (top + rows < area.bottom) {
+        int hits = 0;
+        for (int x = left; x < right; x++) {
+            const int color = surface_.At(x, top + rows);
+            if (color == style.grouping || color == style.groupingHover ||
+                color == style.groupingSelect)
+                hits++;
+        }
+        if (hits * 2 <= span) break;
+        rows++;
+    }
+    return rows;
+}
+
 RECT PanelLayout::TitleBand(const RECT& area) const {
     const StyleMetrics& style = Style();
     const int top = surface_.At(area.left + 1, area.top) == style.windowBorder ? area.top + 1
                                                                               : area.top;
-    const RECT first = TitleBandFrom(area, top);
-    if (first.bottom <= first.top) return TitleBandFrom(area, top + style.groupTabHeight);
+    RECT band = TitleBandFrom(area, top);
+    if (band.bottom <= band.top) {
+        const int rows = GroupTabRows(area, top);
+        if (abs(rows - (style.groupTabHeight - 2)) > 1) return kEmptyBand;
+        band = RECT{ area.left, top, area.right, top + rows };
+    }
 
-    const RECT second = TitleBandFrom(area, first.bottom);
-    if (second.bottom <= second.top) return first;
-    return RECT{ area.left, first.top, area.right, second.bottom };
+    const RECT below = TitleBandFrom(area, band.bottom + 1);
+    if (below.bottom <= below.top) return band;
+    return RECT{ area.left, band.top, area.right, below.bottom };
 }
 
 void PanelLayout::Divide(const RECT& area, int stack, int order) {
