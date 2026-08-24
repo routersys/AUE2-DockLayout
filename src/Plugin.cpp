@@ -14,7 +14,7 @@ using namespace dl;
 
 COMMON_PLUGIN_TABLE common_plugin_table = {
     L"ドッキング配置",
-    L"ドッキング配置 version 1.0.0",
+    L"ドッキング配置 version 1.0.1",
 };
 
 EXTERN_C __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(void) {
