@@ -1,6 +1,7 @@
 #include <windows.h>
 
 #include "DragSession.h"
+#include "FloatOrigin.h"
 #include "FloatWindowHook.h"
 #include "GuideWindow.h"
 #include "HostContext.h"
@@ -14,7 +15,7 @@ using namespace dl;
 
 COMMON_PLUGIN_TABLE common_plugin_table = {
     L"ドッキング配置",
-    L"ドッキング配置 version 1.0.1",
+    L"ドッキング配置 version 1.1.0",
 };
 
 EXTERN_C __declspec(dllexport) COMMON_PLUGIN_TABLE* GetCommonPluginTable(void) {
@@ -42,6 +43,7 @@ EXTERN_C __declspec(dllexport) void UninitializePlugin() {
     UninstallFloatWindowHook();
     UninstallHostWindowHook();
     UninstallWindowMenuHook();
+    ClearFloatOrigins();
 }
 
 BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID) { return TRUE; }

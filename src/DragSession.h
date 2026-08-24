@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include "FloatOrigin.h"
+
 namespace dl {
 
 class DragSession {
@@ -25,6 +27,7 @@ private:
     void Execute();
     void ExecuteGroup(int target);
     void ExecuteInsert(int target, bool after);
+    void ExecuteDetach();
     void Replay(POINT screenPt);
     void Reset();
 
@@ -33,6 +36,8 @@ private:
     POINT origin_ = {};
     int panel_ = -1;
     bool pending_ = false;
+    bool hasOrigin_ = false;
+    FloatOrigin floatOrigin_;
 };
 
 DragSession& Drag();

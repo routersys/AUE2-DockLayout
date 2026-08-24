@@ -1,10 +1,11 @@
 #include "DockGuides.h"
 
+#include <utility>
+
+#include "DockPlan.h"
 #include "HostContext.h"
 
 namespace dl {
-
-static const int kAreaBandDivisor = 4;
 
 static int ButtonSize() {
     const int base = LayoutSize("TitleHeaderHeight");
@@ -32,31 +33,6 @@ static bool Empty(const RECT& r) {
     return r.right <= r.left || r.bottom <= r.top;
 }
 
-static RECT EdgeBand(const RECT& region, int area) {
-    const int width = (region.right - region.left) / kAreaBandDivisor;
-    const int height = (region.bottom - region.top) / kAreaBandDivisor;
-    switch (area) {
-        case 0: return RECT{ region.left, region.top, region.left + width, region.bottom };
-        case 1: return RECT{ region.right - width, region.top, region.right, region.bottom };
-        case 2: return RECT{ region.left, region.top, region.right, region.top + height };
-        case 3: return RECT{ region.left, region.bottom - height, region.right, region.bottom };
-        default: break;
-    }
-    return RECT{ region.left, region.top + height, region.right, region.bottom - height };
-}
-
-static RECT SideHalf(const RECT& r, StackAxis axis, bool after) {
-    RECT half = r;
-    if (axis == StackAxis::Vertical) {
-        const int middle = (r.top + r.bottom) / 2;
-        (after ? half.top : half.bottom) = middle;
-    } else {
-        const int middle = (r.left + r.right) / 2;
-        (after ? half.left : half.right) = middle;
-    }
-    return half;
-}
-
 bool CanGroupOnto(const DockModel& model, int source, int target) {
     const DockPanel* from = model.Get(source);
     const DockPanel* onto = model.Get(target);
@@ -80,13 +56,70 @@ bool CanInsertInto(const DockModel& model, int source, int target) {
            from->area != kAreaUnknown && from->area == onto->area;
 }
 
+bool BuildInsertPlan(const DockModel& model, int source, int target, bool after, InsertPlan* plan) {
+    const DockPanel* from = model.Get(source);
+    const DockPanel* onto = model.Get(target);
+    if (!from || !onto || !plan) return false;
+
+    plan->slots.clear();
+    for (size_t i = 0; i < model.Panels().size(); i++)
+        if (model.Panels()[i].stack == from->stack) plan->slots.push_back(static_cast<int>(i));
+    for (size_t i = 1; i < plan->slots.size(); i++)
+        for (size_t j = i; j > 0 && model.Panels()[plan->slots[j - 1]].order >
+                                    model.Panels()[plan->slots[j]].order; j--)
+            std::swap(plan->slots[j - 1], plan->slots[j]);
+
+    int at = -1, to = -1;
+    for (size_t i = 0; i < plan->slots.size(); i++) {
+        if (plan->slots[i] == source) at = static_cast<int>(i);
+        if (plan->slots[i] == target) to = static_cast<int>(i);
+    }
+    if (at < 0 || to < 0) return false;
+
+    plan->from = at;
+    plan->to = after ? (at < to ? to : to + 1) : (at < to ? to - 1 : to);
+    return plan->to != at;
+}
+
+static bool PlanAreaMove(const DockModel& model, int source, int area, RECT* out) {
+    const DockPanel* from = model.Get(source);
+    if (!from || from->grouped) return false;
+    if (from->area == area) { *out = from->rect; return true; }
+
+    DockPlan plan;
+    if (!plan.Load(model)) return false;
+    if (!plan.SetArea(source, area)) return false;
+    plan.Compute();
+    return plan.RectOf(source, out);
+}
+
+static bool PlanGroup(const DockModel& model, int source, int target, RECT* out) {
+    const DockPanel* from = model.Get(source);
+    if (!from || from->grouped) return false;
+
+    DockPlan plan;
+    if (!plan.Load(model)) return false;
+    if (!plan.Detach(source)) return false;
+    plan.Compute();
+    return plan.RectOf(target, out);
+}
+
+static bool PlanMerge(const DockModel& model, const FloatOrigin& incoming, RECT* out) {
+    DockPlan plan;
+    if (!plan.Load(model)) return false;
+    if (!plan.Add(incoming.left, incoming.top, incoming.right, incoming.bottom, incoming.area))
+        return false;
+    plan.Compute();
+    return plan.RectOf(kIncomingPanel, out);
+}
+
 void DockGuides::Clear() {
     buttons_.clear();
     hot_ = -1;
     target_ = DropTarget();
 }
 
-void DockGuides::AddAreaCross(const DockModel& model) {
+void DockGuides::AddAreaCross(const DockModel& model, int source) {
     const RECT& region = model.Region();
     const POINT center = CenterOf(region);
     const int size = ButtonSize();
@@ -106,8 +139,8 @@ void DockGuides::AddAreaCross(const DockModel& model) {
         button.icon = icons[area];
         button.target.kind = DropKind::Area;
         button.target.area = area;
-        RECT preview = model.AreaRect(area);
-        button.target.preview = Empty(preview) ? EdgeBand(region, area) : preview;
+        button.target.known = PlanAreaMove(model, source, area, &button.target.preview);
+        if (!button.target.known) button.target.preview = RECT{};
         buttons_.push_back(button);
     }
 }
@@ -165,14 +198,32 @@ void DockGuides::AddPanelCluster(const DockModel& model, int source, int hovered
         button.target.kind = entry.kind;
         button.target.panel = hovered;
         button.target.after = entry.after;
-        button.target.preview = entry.kind == DropKind::Group
-            ? onto->rect
-            : SideHalf(onto->rect, axis, entry.after);
+        if (entry.kind == DropKind::Group) {
+            button.target.known = PlanGroup(model, source, hovered, &button.target.preview);
+            if (!button.target.known) button.target.preview = RECT{};
+        }
+        if (entry.kind == DropKind::Insert) {
+            InsertPlan plan;
+            if (BuildInsertPlan(model, source, hovered, entry.after, &plan)) {
+                const DockPanel* slot = model.Get(plan.slots[plan.to]);
+                if (slot) {
+                    button.target.preview = slot->rect;
+                    button.target.known = true;
+                }
+            } else {
+                const DockPanel* from = model.Get(source);
+                if (from) {
+                    button.target.preview = from->rect;
+                    button.target.known = true;
+                }
+            }
+        }
         buttons_.push_back(button);
     }
 }
 
-void DockGuides::Update(const DockModel& model, int source, POINT cursor, bool inside) {
+void DockGuides::Update(const DockModel& model, int source, POINT cursor, bool inside,
+                        const FloatOrigin* incoming) {
     buttons_.clear();
     hot_ = -1;
     target_ = DropTarget();
@@ -184,10 +235,12 @@ void DockGuides::Update(const DockModel& model, int source, POINT cursor, bool i
         button.rect = CenteredRect(CenterOf(model.Region()), ButtonSize());
         button.icon = GuideIcon::Merge;
         button.target.kind = DropKind::Merge;
-        button.target.preview = model.Region();
+        if (incoming && incoming->area != kAreaUnknown)
+            button.target.known = PlanMerge(model, *incoming, &button.target.preview);
+        if (!button.target.known) button.target.preview = RECT{};
         buttons_.push_back(button);
     } else {
-        AddAreaCross(model);
+        AddAreaCross(model, source);
         const int hovered = model.IndexAt(cursor);
         if (hovered >= 0 && hovered != source) AddPanelCluster(model, source, hovered);
     }

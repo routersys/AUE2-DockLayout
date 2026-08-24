@@ -148,7 +148,7 @@ void Paint(Canvas& canvas, const DockGuides& guides) {
 
     const DropTarget& target = guides.Target();
     const RECT& preview = target.preview;
-    if (target.kind != DropKind::None && target.kind != DropKind::Detach &&
+    if (target.kind != DropKind::None && target.known &&
         preview.right > preview.left && preview.bottom > preview.top) {
         canvas.Fill(preview, accent, kPreviewFillAlpha);
         canvas.Frame(preview, kPreviewEdgeWidth, accent, kPreviewEdgeAlpha);
