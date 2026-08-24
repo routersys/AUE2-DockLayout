@@ -93,6 +93,7 @@
 
   <ItemGroup>
     <ClCompile Include="src\HostContext.cpp" />
+    <ClCompile Include="src\HostSurface.cpp" />
     <ClCompile Include="src\Log.cpp" />
     <ClCompile Include="src\Plugin.cpp" />
     <ClCompile Include="src\StyleMetrics.cpp" />
@@ -100,6 +101,7 @@
 
   <ItemGroup>
     <ClInclude Include="src\HostContext.h" />
+    <ClInclude Include="src\HostSurface.h" />
     <ClInclude Include="src\Log.h" />
     <ClInclude Include="src\StyleMetrics.h" />
   </ItemGroup>
