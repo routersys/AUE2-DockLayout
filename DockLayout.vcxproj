@@ -98,6 +98,7 @@
     <ClCompile Include="src\GuideWindow.cpp" />
     <ClCompile Include="src\HostContext.cpp" />
     <ClCompile Include="src\HostSurface.cpp" />
+    <ClCompile Include="src\HostWindowHook.cpp" />
     <ClCompile Include="src\Log.cpp" />
     <ClCompile Include="src\PanelLayout.cpp" />
     <ClCompile Include="src\Plugin.cpp" />
@@ -112,6 +113,7 @@
     <ClInclude Include="src\GuideWindow.h" />
     <ClInclude Include="src\HostContext.h" />
     <ClInclude Include="src\HostSurface.h" />
+    <ClInclude Include="src\HostWindowHook.h" />
     <ClInclude Include="src\Log.h" />
     <ClInclude Include="src\PanelLayout.h" />
     <ClInclude Include="src\StyleMetrics.h" />

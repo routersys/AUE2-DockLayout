@@ -206,6 +206,7 @@ void DragSession::Commit(POINT screenPt) {
     }
     if (phase_ != Phase::Dragging) return;
 
+    phase_ = Phase::Idle;
     if (GetCapture() == window_) ReleaseCapture();
     Overlay().Hide();
     Execute();
@@ -213,7 +214,9 @@ void DragSession::Commit(POINT screenPt) {
 }
 
 void DragSession::Cancel() {
-    if (phase_ == Phase::Dragging) {
+    const bool dragging = phase_ == Phase::Dragging;
+    phase_ = Phase::Idle;
+    if (dragging) {
         if (GetCapture() == window_) ReleaseCapture();
         Overlay().Hide();
     }
