@@ -1,7 +1,12 @@
 #include <windows.h>
 
+#include "DragSession.h"
+#include "FloatWindowHook.h"
+#include "GuideWindow.h"
 #include "HostContext.h"
+#include "HostWindowHook.h"
 #include "Log.h"
+#include "WindowMenu.h"
 
 #include "plugin2.h"
 
@@ -23,10 +28,19 @@ EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD) { return true; }
 EXTERN_C __declspec(dllexport) void RegisterPlugin(HOST_APP_TABLE* host) {
     SetHostWindow(host->create_edit_handle()->get_host_app_window());
 
-    LogF(L"DockLayout registered (host=%p)", (void*)HostWindow());
+    InstallWindowMenuHook();
+    InstallHostWindowHook();
+    InstallFloatWindowHook();
+
+    LogF(L"ドッキング配置: 有効になりました");
 }
 
 EXTERN_C __declspec(dllexport) void UninitializePlugin() {
+    Drag().Cancel();
+    Overlay().Destroy();
+    UninstallFloatWindowHook();
+    UninstallHostWindowHook();
+    UninstallWindowMenuHook();
 }
 
 BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID) { return TRUE; }

@@ -28,6 +28,9 @@
     <ClCompile Include="src\DragSession.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="src\FloatWindowHook.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="src\GuideWindow.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -64,6 +67,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="src\DragSession.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="src\FloatWindowHook.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="src\GuideWindow.h">
