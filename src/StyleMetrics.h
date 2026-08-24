@@ -7,9 +7,12 @@ struct StyleMetrics {
     int windowBorder;
     int titleHeader;
     int grouping;
+    int groupingHover;
+    int groupingSelect;
     int windowSeparatorSize;
     int titleHeaderHeight;
     int settingItemHeight;
+    int groupTabHeight;
     int footerHeight;
 };
 

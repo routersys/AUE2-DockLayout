@@ -7,6 +7,8 @@
 
 namespace dl {
 
+RECT DockRegion();
+
 enum class StackAxis { Vertical, Horizontal };
 
 struct Panel {
@@ -34,6 +36,7 @@ private:
     int ClassifyColumn(int x, int y0, int y1) const;
     bool RowMostly(int y, int x0, int x1, int color, bool* full) const;
     std::vector<RECT> SplitBands(const RECT& area, StackAxis axis) const;
+    RECT TitleBandFrom(const RECT& area, int top) const;
     RECT TitleBand(const RECT& area) const;
     void Divide(const RECT& area, int stack, int order);
 

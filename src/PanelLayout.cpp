@@ -9,6 +9,19 @@ namespace dl {
 
 static const RECT kEmptyBand = {};
 
+struct HeaderStyle {
+    int color;
+    int height;
+};
+
+RECT DockRegion() {
+    HWND host = HostWindow();
+    RECT client = {};
+    if (!host || !GetClientRect(host, &client)) return kEmptyBand;
+    RefreshStyle();
+    return RECT{ 0, 0, client.right, client.bottom - Style().footerHeight };
+}
+
 int PanelLayout::ClassifyRow(int y, int x0, int x1) const {
     const StyleMetrics& style = Style();
     int borders = 0;
@@ -74,27 +87,45 @@ std::vector<RECT> PanelLayout::SplitBands(const RECT& area, StackAxis axis) cons
     return bands;
 }
 
-RECT PanelLayout::TitleBand(const RECT& area) const {
+RECT PanelLayout::TitleBandFrom(const RECT& area, int top) const {
     const StyleMetrics& style = Style();
     const int left = area.left + 1;
     const int right = area.right - 1;
-    if (right - left <= 0) return kEmptyBand;
+    if (right - left <= 0 || top >= area.bottom) return kEmptyBand;
 
-    const int top = surface_.At(left, area.top) == style.windowBorder ? area.top + 1 : area.top;
-    const int colors[2] = { style.titleHeader, style.grouping };
-    const int heights[2] = { style.titleHeaderHeight, style.settingItemHeight };
-    for (int i = 0; i < 2; i++) {
+    const HeaderStyle styles[] = {
+        { style.titleHeader,    style.titleHeaderHeight },
+        { style.grouping,       style.settingItemHeight },
+        { style.groupingHover,  style.settingItemHeight },
+        { style.groupingSelect, style.settingItemHeight },
+        { style.grouping,       style.groupTabHeight },
+        { style.groupingHover,  style.groupTabHeight },
+        { style.groupingSelect, style.groupTabHeight },
+    };
+    for (const HeaderStyle& header : styles) {
         int rows = 0;
         bool glyph = false;
         bool full = false;
-        while (top + rows < area.bottom && RowMostly(top + rows, left, right, colors[i], &full)) {
+        while (top + rows < area.bottom && RowMostly(top + rows, left, right, header.color, &full)) {
             if (!full) glyph = true;
             rows++;
         }
-        if (rows > 0 && glyph && abs(rows - heights[i]) <= 1)
+        if (rows > 0 && glyph && abs(rows - header.height) <= 1)
             return RECT{ area.left, top, area.right, top + rows };
     }
     return kEmptyBand;
+}
+
+RECT PanelLayout::TitleBand(const RECT& area) const {
+    const StyleMetrics& style = Style();
+    const int top = surface_.At(area.left + 1, area.top) == style.windowBorder ? area.top + 1
+                                                                              : area.top;
+    const RECT first = TitleBandFrom(area, top);
+    if (first.bottom <= first.top) return TitleBandFrom(area, top + style.groupTabHeight);
+
+    const RECT second = TitleBandFrom(area, first.bottom);
+    if (second.bottom <= second.top) return first;
+    return RECT{ area.left, first.top, area.right, second.bottom };
 }
 
 void PanelLayout::Divide(const RECT& area, int stack, int order) {
@@ -116,12 +147,10 @@ bool PanelLayout::Build() {
     region_ = kEmptyBand;
 
     HWND host = HostWindow();
-    if (!host) return false;
     RECT client = {};
-    if (!GetClientRect(host, &client)) return false;
+    if (!host || !GetClientRect(host, &client)) return false;
 
-    RefreshStyle();
-    const RECT region = { 0, 0, client.right, client.bottom - Style().footerHeight };
+    const RECT region = DockRegion();
     if (region.right <= 0 || region.bottom <= 0) return false;
     if (!surface_.Capture(host, client.right, client.bottom)) return false;
 

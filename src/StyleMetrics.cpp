@@ -12,9 +12,12 @@ void RefreshStyle() {
     g_style.windowBorder        = ColorCode("WindowBorder");
     g_style.titleHeader         = ColorCode("TitleHeader");
     g_style.grouping            = ColorCode("Grouping");
+    g_style.groupingHover       = ColorCode("GroupingHover");
+    g_style.groupingSelect      = ColorCode("GroupingSelect");
     g_style.windowSeparatorSize = LayoutSize("WindowSeparatorSize");
     g_style.titleHeaderHeight   = LayoutSize("TitleHeaderHeight");
     g_style.settingItemHeight   = LayoutSize("SettingItemHeight");
+    g_style.groupTabHeight      = LayoutSize("GroupTabHeight");
     g_style.footerHeight        = LayoutSize("FooterHeight");
     g_loaded = true;
 }

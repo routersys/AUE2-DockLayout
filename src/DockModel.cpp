@@ -12,6 +12,12 @@ void DockModel::Clear() {
     region_ = RECT{};
 }
 
+bool DockModel::BuildRegion() {
+    Clear();
+    region_ = DockRegion();
+    return region_.right > 0 && region_.bottom > 0;
+}
+
 bool DockModel::Build() {
     Clear();
     if (!layout_.Build()) return false;
@@ -21,7 +27,8 @@ bool DockModel::Build() {
         DockPanel entry = {};
         entry.rect = panel.rect;
         entry.title = panel.title;
-        entry.probe = POINT{ panel.rect.left + kProbeInset, panel.rect.top + kProbeInset };
+        const int top = panel.HasTitle() ? panel.title.top : panel.rect.top;
+        entry.probe = POINT{ panel.rect.left + kProbeInset, top + kProbeInset };
         entry.stack = panel.stack;
         entry.order = panel.order;
         entry.area = kAreaUnknown;

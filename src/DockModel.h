@@ -22,6 +22,7 @@ struct DockPanel {
 class DockModel {
 public:
     bool Build();
+    bool BuildRegion();
     void Clear();
 
     const RECT& Region() const { return region_; }
